@@ -1,9 +1,8 @@
-from PIL import Image
+from PIL import Image, ImageDraw
 import numpy as np
 
-def get_matrices(png_img):
+def get_matrices(img):
     '''return RGB matrices from png image'''
-    img = Image.open(png_img)
     
     mats = {}
     for color,band in {'r':0,'g':1,'b':2}.items():
@@ -17,6 +16,13 @@ def svd_matrix(mat):
     '''return the SVD of matrix mat'''
     return np.linalg.svd(mat)
 
+def svd_matrix_all(mats):
+    channel_svd = {}
+    for channel,mat in mats.items():
+        u,s,vh = svd_matrix(mat)
+        channel_svd[channel] = {'u':u,'s':s,'vh':vh}
+    return channel_svd
+
 def reconstruct_mat(u,sigma,v,rank):
     '''return matrix from svd decomposition'''
     return np.matrix(u[:, :rank]) * np.diag(sigma[:rank]) * np.matrix(v[:rank, :])
@@ -27,23 +33,64 @@ def reconstruct_img(r,g,b,size):
     rgb[..., 1] = g
     rgb[..., 2] = b
 
-    img = Image.fromarray(rgb)
-    img.save('compressed.png')
+    return Image.fromarray(rgb)
 
-def foo(img):
-    mats = get_matrices(img)
-    
+def svd_compress(svd_rgb,rank):
     recon_mats = {}
-    for channel,mat in mats.items():
-        u,s,vh = svd_matrix(mat)
 
-        recon = reconstruct_mat(u,s,vh,5)
+    #  for channel,mat in mats.items():
+    #      u,s,vh = svd_matrix(mat) #Can optimize here (doesn't need to loop for every rank)
+
+    for channel,svd in svd_rgb.items():
+        u = svd['u']
+        s = svd['s']
+        vh = svd['vh']
+        recon = reconstruct_mat(u,s,vh,rank)
         recon_mats[channel] = recon
     
-    reconstruct_img(recon_mats['r'],recon_mats['g'],recon_mats['b'],[2000,2000])
+    #return reconstruct_img(recon_mats['r'],recon_mats['g'],recon_mats['b'],[size[1],size[0]])
+    return recon_mats
+
+def svd_img_save(name,mats,rank):
+    size = mats['r'].shape
+    svd_rgb= svd_matrix_all(mats)
+
+    recon_mats = svd_compress(svd_rgb,rank)
+    img_comp = reconstruct_img(recon_mats['r'],recon_mats['g'],recon_mats['b'],[size[1],size[0]]) 
+    img_comp.save('rank{}_{}'.format(str(rank),name+'.png'))
+
+
+def make_gif(name,mats,top_rank,bottom_rank=1,step=5):
+
+    size = mats['r'].shape
+    images = []
+    svd_rgb= svd_matrix_all(mats)
+    for i in range(bottom_rank,top_rank + 1,step):
+        #if file not in dir
+        recon_mats = svd_compress(svd_rgb,i)
+        img_comp = reconstruct_img(recon_mats['r'],recon_mats['g'],recon_mats['b'],[size[1],size[0]]) 
+        images.append(img_comp)
+        img_comp.save('rank{}_{}'.format(str(rank),name+'.png'))
+        #else read from dir
+        
+        print('rank:',i,'completed')
+    
+    images[0].save(name + '_{}.gif'.format(str(top_rank)),
+               save_all=True,
+               append_images=images[1:],
+               duration=100,
+               loop=0)
+
 
 if __name__ == '__main__':
-    foo("images/hendrix_final.png")
+    png_img = "images/hendrix_final.png"
+
+    img = Image.open(png_img)
+    mats = get_matrices(img)
+
+    #make_gif('hendrix',mats,200)
+
+    svd_img_save('hendrix',mats,500)
 
 
 
