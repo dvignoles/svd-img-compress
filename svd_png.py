@@ -17,6 +17,7 @@ def svd_matrix(mat):
     return np.linalg.svd(mat)
 
 def svd_matrix_all(mats):
+    '''return the SVD matrix for all rgb channel as dic'''
     channel_svd = {}
     for channel,mat in mats.items():
         u,s,vh = svd_matrix(mat)
@@ -36,6 +37,7 @@ def reconstruct_img(r,g,b,size):
     return Image.fromarray(rgb)
 
 def svd_compress(svd_rgb,rank):
+    '''construct approximate matrixes from rgb matrix svd decompositions'''
     recon_mats = {}
 
     #  for channel,mat in mats.items():
@@ -52,6 +54,7 @@ def svd_compress(svd_rgb,rank):
     return recon_mats
 
 def svd_img_save(name,mats,rank):
+    '''save compressed image from rgb matrices'''
     size = mats['r'].shape
     svd_rgb= svd_matrix_all(mats)
 
@@ -61,7 +64,7 @@ def svd_img_save(name,mats,rank):
 
 
 def make_gif(name,mats,top_rank,bottom_rank=1,step=5):
-
+    '''save gif showing rank progression of compressed images via svd'''
     size = mats['r'].shape
     images = []
     svd_rgb= svd_matrix_all(mats)
